@@ -563,14 +563,14 @@
 
   <script>
     // إعداد Supabase
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+<script type="module">
+    // إعداد Supabase
+    import { createClient } from "https://esm.sh/@supabase/supabase-js";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
+    const supabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
 
     // الحالة داخل الواجهة
     let rooms = [];
@@ -578,7 +578,8 @@ const supabaseClient = window.supabase.createClient(
     let selectedRoomId = null;
 
     const WORK_START_HOUR = 8;
-    const WORK_END_HOUR = 16; // 4 مساءً
+    const WORK_END_HOUR = 16;
+
 
     // عناصر DOM
     const roomsGrid = document.getElementById("roomsGrid");
