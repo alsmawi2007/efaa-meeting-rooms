@@ -1,0 +1,8 @@
+{
+  "name": "efaa-meeting-rooms",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node generate-config.js"
+  },
+  "type": "module"
+}
