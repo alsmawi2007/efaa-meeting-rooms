@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>نظام حجز قاعات الاجتماعات - مجمع الأمير سلطان للتأهيل - إيفاء</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --green-dark: #006f6b;
+      --green: #02a39a;
+      --green-light: #0fb8b0;
+      --bg: #008c84;
+      --white: #ffffff;
+      --danger: #ff4b4b;
+      --warning: #ffb347;
+      --text-main: #053b3a;
+      --muted: #e5f3f3;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --shadow-soft: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #007f77, #00a69a);
+      color: var(--white);
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 16px 40px;
+    }
+
+    .header-card {
+      background: var(--white);
+      color: var(--text-main);
+      border-radius: var(--radius-xl);
+      padding: 18px 24px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .header-title-main {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .header-title-sub {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .clock {
+      text-align: left;
+      font-weight: 600;
+    }
+
+    .clock-time {
+      font-size: 20px;
+    }
+
+    .clock-date {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .section-card {
+      background: rgba(0, 0, 0, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px 18px;
+      margin-bottom: 14px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .section-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .rooms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .room-card {
+      background: rgba(0, 0, 0, 0.14);
+      border-radius: var(--radius-lg);
+      padding: 14px 14px 12px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .room-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+      border-color: rgba(255,255,255,0.28);
+      background: rgba(0, 0, 0, 0.20);
+    }
+
+    .room-card.selected {
+      border-color: var(--white);
+      box-shadow: var(--shadow-soft);
+      background: linear-gradient(135deg, rgba(0,0,0,0.24), rgba(0,0,0,0.12));
+    }
+
+    .room-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .room-capacity {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+    }
+
+    .room-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.22);
+    }
+
+    .room-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+    }
+
+    .room-status-available .room-status-dot {
+      background: #4cd964;
+    }
+
+    .room-status-busy .room-status-dot {
+      background: #ff3b30;
+    }
+
+    .room-status-busy {
+      background: rgba(255, 59, 48, 0.18);
+    }
+
+    .room-status-available {
+      background: rgba(76, 217, 100, 0.18);
+    }
+
+    .room-footer-line {
+      font-size: 11px;
+      opacity: 0.85;
+      margin-top: 9px;
+    }
+
+    .room-footer-line strong { color: #fff; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.20);
+    }
+
+    .date-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 4px 0 10px;
+    }
+
+    .date-row input[type="date"] {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      direction: ltr;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.18);
+      color: var(--white);
+      transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green-light), var(--green-dark));
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #12cbc4, #03847f);
+      transform: translateY(-1px);
+    }
+
+    .btn-ghost {
+      background: rgba(0,0,0,0.20);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(0,0,0,0.28);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ff4b4b, #d71919);
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #ff6b6b, #d21b1b);
+    }
+
+    .booking-list {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .booking-item {
+      background: rgba(0,0,0,0.24);
+      border-radius: 14px;
+      padding: 8px 10px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .booking-info-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .booking-title {
+      font-weight: 600;
+    }
+
+    .booking-line {
+      opacity: 0.9;
+    }
+
+    .booking-time-pill {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .muted-text {
+      opacity: 0.85;
+      font-size: 12px;
+      padding-top: 4px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      padding: 10px;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      background: #005f5a;
+      border-radius: 18px;
+      padding: 16px 18px 18px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      margin-bottom: 2px;
+      opacity: 0.95;
+    }
+
+    .form-input,
+    .form-textarea,
+    .form-select {
+      width: 100%;
+      border-radius: 10px;
+      border: none;
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+      background: rgba(0,0,0,0.20);
+      color: #fff;
+    }
+
+    .form-input::placeholder,
+    .form-textarea::placeholder {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 60px;
+      max-height: 140px;
+    }
+
+    .form-row-inline {
+      display: flex;
+      gap: 8px;
+    }
+
+    .helper-text {
+      font-size: 11px;
+      opacity: 0.85;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 14px;
+      right: 50%;
+      transform: translateX(50%);
+      background: rgba(0,0,0,0.85);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      display: inline-flex;
+      animation: fadeInOut 3s ease forwards;
+    }
+
+    .toast-success {
+      background: rgba(76,217,100,0.95);
+      color: #053b3a;
+    }
+
+    .toast-error {
+      background: rgba(255,59,48,0.98);
+    }
+
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateX(50%) translateY(8px); }
+      10%, 80% { opacity: 1; transform: translateX(50%) translateY(0); }
+      100% { opacity: 0; transform: translateX(50%) translateY(8px); }
+    }
+
+    @media (max-width: 640px) {
+      .header-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .clock { text-align: right; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- الهيدر -->
+    <div class="header-card">
+      <div>
+        <div class="header-title-main">مجمع الأمير سلطان للتأهيل - إيفاء</div>
+        <div class="header-title-sub">نظام حجز قاعات الاجتماعات الداخلية</div>
+      </div>
+      <div class="clock">
+        <div class="clock-time" id="clockTime">--:--</div>
+        <div class="clock-date" id="clockDate"></div>
+      </div>
+    </div>
+
+    <!-- القاعات -->
+    <div class="section-card">
+      <div class="section-title-row">
+        <div>
+          <div class="section-title">القاعات المتاحة</div>
+          <div class="section-subtitle">اختر القاعة لعرض حجوزاتها وحجز موعد جديد</div>
+        </div>
+        <div class="badge">ساعات العمل: 8:00 ص - 4:00 م</div>
+      </div>
+      <div id="roomsGrid" class="rooms-grid">
+        <!-- يتم تعبئتها من جافاسكربت -->
+      </div>
+      <div class="muted-text" id="roomsHint"></div>
+    </div>
+
+    <!-- الحجوزات -->
+    <div class="section-card">
+      <div class="section-title-row">
+        <div>
+          <div class="section-title">
+            حجوزات اليوم للقاعة: <span id="currentRoomLabel">-</span>
+          </div>
+          <div class="section-subtitle">
+            اختر التاريخ لعرض الحجوزات، ثم استخدم زر "حجز جديد" لإضافة اجتماع.
+          </div>
+        </div>
+        <button id="newBookingBtn" class="btn btn-primary" disabled>
+          + حجز جديد
+        </button>
+      </div>
+
+      <div class="date-row">
+        <label class="section-subtitle">تاريخ الحجز:</label>
+        <input type="date" id="datePicker" />
+      </div>
+
+      <div id="bookingList" class="booking-list"></div>
+      <div id="bookingEmpty" class="muted-text"></div>
+    </div>
+  </div>
+
+  <!-- مودال الحجز -->
+  <div id="bookingModalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">حجز قاعة اجتماع</div>
+        <button class="modal-close" id="closeModalBtn">&times;</button>
+      </div>
+      <div class="section-subtitle" id="modalRoomInfo"></div>
+
+      <form id="bookingForm" class="form-grid">
+        <div>
+          <div class="form-label">عنوان الاجتماع</div>
+          <input id="titleInput" class="form-input" placeholder="مثال: اجتماع الفريق التقني" required />
+        </div>
+
+        <div>
+          <div class="form-label">اسم الفريق / الجهة</div>
+          <input id="teamInput" class="form-input" placeholder="مثال: إدارة التسويق والاتصال المؤسسي" required />
+        </div>
+
+        <div class="form-row-inline">
+          <div style="flex:1;">
+            <div class="form-label">عدد الحضور</div>
+            <input id="attendeesInput" type="number" min="1" class="form-input" placeholder="عدد الأشخاص" required />
+          </div>
+          <div style="flex:1;">
+            <div class="form-label">المدة</div>
+            <select id="durationInput" class="form-select" required>
+              <option value="30">30 دقيقة</option>
+              <option value="60" selected>60 دقيقة</option>
+              <option value="90">90 دقيقة</option>
+              <option value="120">120 دقيقة</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-inline">
+          <div style="flex:1;">
+            <div class="form-label">تاريخ الاجتماع</div>
+            <input id="dateInput" type="date" class="form-input" required />
+          </div>
+          <div style="flex:1;">
+            <div class="form-label">وقت البداية</div>
+            <input id="timeInput" type="time" class="form-input" required />
+          </div>
+        </div>
+        <div class="helper-text">
+          ملاحظة: النظام يسمح بالحجز بين الساعة 8:00 صباحًا و 4:00 عصرًا فقط، مع منع تداخل الحجوزات.
+        </div>
+
+        <div>
+          <div class="form-label">هدف / وصف الاجتماع (اختياري)</div>
+          <textarea id="objectiveInput" class="form-textarea" placeholder="وصف مختصر لهدف الاجتماع إن أحببت"></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+          <button type="button" class="btn btn-ghost" id="cancelModalBtn">إلغاء</button>
+          <button type="submit" class="btn btn-primary">تأكيد الحجز ✓</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // إعداد Supabase
+    const SUPABASE_URL = "https://qrivkugygvycseqjfgri.supabase.co";
+    const SUPABASE_KEY = "sb-publishable_cbznaUAsUgQ0XX9mZhGob6Q_Fygnaz-D";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // الحالة داخل الواجهة
+    let rooms = [];
+    let bookings = [];
+    let selectedRoomId = null;
+
+    const WORK_START_HOUR = 8;
+    const WORK_END_HOUR = 16; // 4 مساءً
+
+    // عناصر DOM
+    const roomsGrid = document.getElementById("roomsGrid");
+    const roomsHint = document.getElementById("roomsHint");
+    const currentRoomLabel = document.getElementById("currentRoomLabel");
+    const bookingList = document.getElementById("bookingList");
+    const bookingEmpty = document.getElementById("bookingEmpty");
+    const newBookingBtn = document.getElementById("newBookingBtn");
+    const datePicker = document.getElementById("datePicker");
+
+    const bookingModalBackdrop = document.getElementById("bookingModalBackdrop");
+    const bookingForm = document.getElementById("bookingForm");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const cancelModalBtn = document.getElementById("cancelModalBtn");
+    const modalRoomInfo = document.getElementById("modalRoomInfo");
+
+    const titleInput = document.getElementById("titleInput");
+    const teamInput = document.getElementById("teamInput");
+    const attendeesInput = document.getElementById("attendeesInput");
+    const durationInput = document.getElementById("durationInput");
+    const dateInput = document.getElementById("dateInput");
+    const timeInput = document.getElementById("timeInput");
+    const objectiveInput = document.getElementById("objectiveInput");
+
+    const toastEl = document.getElementById("toast");
+    const clockTimeEl = document.getElementById("clockTime");
+    const clockDateEl = document.getElementById("clockDate");
+
+    // ساعة حية
+    function startClock() {
+      function updateClock() {
+        const now = new Date();
+        clockTimeEl.textContent = now.toLocaleTimeString("ar-SA", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        clockDateEl.textContent = now.toLocaleDateString("ar-SA", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+    }
+
+    // Toast
+    function showToast(message, type = "success") {
+      toastEl.className = "toast show " + (type === "error" ? "toast-error" : "toast-success");
+      toastEl.textContent = message;
+      setTimeout(() => {
+        toastEl.className = "toast";
+      }, 3000);
+    }
+
+    // helper: بداية ونهاية اليوم
+    function getDayRange(dateStr) {
+      const start = new Date(dateStr);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return { start, end };
+    }
+
+    // تحميل القاعات
+    async function loadRooms() {
+      try {
+        roomsHint.textContent = "جاري تحميل القاعات...";
+        const { data, error } = await supabaseClient
+          .from("rooms")
+          .select("*")
+          .order("capacity", { ascending: false });
+
+        if (error) throw error;
+
+        rooms = data || [];
+        renderRooms();
+        roomsHint.textContent = rooms.length
+          ? "اضغط على القاعة لعرض حجوزاتها."
+          : "لا توجد قاعات مسجلة حتى الآن.";
+      } catch (err) {
+        console.error("Error loading rooms:", err);
+        roomsHint.textContent = "حدث خطأ في تحميل القاعات، يرجى المحاولة لاحقاً.";
+        showToast("تعذر تحميل القاعات", "error");
+      }
+    }
+
+    // تحميل الحجوزات لتاريخ معين
+    async function loadBookingsForDate(dateStr) {
+      if (!dateStr) return;
+      try {
+        bookingEmpty.textContent = "جاري تحميل الحجوزات...";
+        const { start, end } = getDayRange(dateStr);
+
+        const { data, error } = await supabaseClient
+          .from("bookings")
+          .select("*")
+          .eq("status", "active")
+          .gte("start_time", start.toISOString())
+          .lt("start_time", end.toISOString())
+          .order("start_time", { ascending: true });
+
+        if (error) throw error;
+        bookings = data || [];
+        renderBookings();
+        renderRooms(); // لتحديث حالة القاعات (محجوزة الآن أو متاحة)
+      } catch (err) {
+        console.error("Error loading bookings:", err);
+        bookingEmpty.textContent = "حدث خطأ أثناء تحميل الحجوزات.";
+        showToast("تعذر تحميل الحجوزات", "error");
+      }
+    }
+
+    // عرض القاعات
+    function renderRooms() {
+      roomsGrid.innerHTML = "";
+      const now = new Date();
+
+      rooms.forEach((room) => {
+        const roomBookings = bookings.filter(
+          (b) => b.room_id === room.id && b.status === "active"
+        );
+
+        let isBusyNow = false;
+        let currentMeeting = null;
+        for (const b of roomBookings) {
+          const s = new Date(b.start_time);
+          const e = new Date(b.end_time);
+          if (now >= s && now < e) {
+            isBusyNow = true;
+            currentMeeting = b;
+            break;
+          }
+        }
+
+        const card = document.createElement("div");
+        card.className = "room-card" + (selectedRoomId === room.id ? " selected" : "");
+        card.dataset.roomId = room.id;
+
+        const statusClass = isBusyNow ? "room-status-busy" : "room-status-available";
+        const statusText = isBusyNow ? "محجوز الآن" : "متاحة للحجز";
+
+        card.innerHTML = `
+          <div class="room-name">${room.name}</div>
+          <div class="room-capacity">السعة القصوى: ${room.capacity} شخص</div>
+          <div class="room-status-pill ${statusClass}">
+            <span class="room-status-dot"></span>
+            <span>${statusText}</span>
+          </div>
+          <div class="room-footer-line">
+            ${
+              isBusyNow && currentMeeting
+                ? `الاجتماع الحالي: <strong>${currentMeeting.title}</strong>`
+                : roomBookings.length
+                ? `حجوزات اليوم: <strong>${roomBookings.length}</strong>`
+                : "لا توجد حجوزات مسجلة لهذا اليوم."
+            }
+          </div>
+        `;
+
+        card.addEventListener("click", () => {
+          selectedRoomId = room.id;
+          currentRoomLabel.textContent = room.name;
+          newBookingBtn.disabled = false;
+          renderRooms();
+          renderBookings();
+        });
+
+        roomsGrid.appendChild(card);
+      });
+    }
+
+    // عرض الحجوزات
+    function renderBookings() {
+      bookingList.innerHTML = "";
+      const dateStr = datePicker.value;
+      if (!selectedRoomId) {
+        bookingEmpty.textContent = "الرجاء اختيار قاعة من الأعلى لعرض حجوزاتها.";
+        return;
+      }
+      if (!dateStr) {
+        bookingEmpty.textContent = "الرجاء اختيار تاريخ.";
+        return;
+      }
+
+      const filtered = bookings.filter(
+        (b) => b.room_id === selectedRoomId && b.status === "active"
+      );
+
+      if (!filtered.length) {
+        bookingEmpty.textContent = "لا توجد حجوزات لهذا اليوم.";
+        return;
+      }
+
+      bookingEmpty.textContent = "";
+      filtered.forEach((b) => {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+        const timeRange =
+          s.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }) +
+          " - " +
+          e.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+
+        const item = document.createElement("div");
+        item.className = "booking-item";
+        item.innerHTML = `
+          <div class="booking-info-main">
+            <div class="booking-title">${b.title}</div>
+            <div class="booking-line">
+              الفريق: ${b.team} • عدد الحضور: ${b.attendees}
+            </div>
+            ${
+              b.objective
+                ? `<div class="booking-line">الوصف: ${b.objective}</div>`
+                : ""
+            }
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+            <div class="booking-time-pill">${timeRange}</div>
+            <button class="btn btn-danger btn-cancel" data-id="${b.id}">
+              إلغاء
+            </button>
+          </div>
+        `;
+        bookingList.appendChild(item);
+      });
+
+      // أزرار الإلغاء
+      document.querySelectorAll(".btn-cancel").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.id;
+          if (!confirm("هل أنت متأكد من إلغاء هذا الحجز؟")) return;
+          await cancelBooking(id);
+        });
+      });
+    }
+
+    // فتح مودال
+    function openModal() {
+      if (!selectedRoomId) {
+        showToast("الرجاء اختيار قاعة أولاً", "error");
+        return;
+      }
+      const room = rooms.find((r) => r.id === selectedRoomId);
+      modalRoomInfo.textContent = `القاعة: ${room ? room.name : ""}`;
+      dateInput.value = datePicker.value || new Date().toISOString().slice(0, 10);
+      timeInput.value = "";
+      titleInput.value = "";
+      teamInput.value = "";
+      attendeesInput.value = "";
+      objectiveInput.value = "";
+      durationInput.value = "60";
+      bookingModalBackdrop.classList.add("show");
+    }
+
+    function closeModal() {
+      bookingModalBackdrop.classList.remove("show");
+    }
+
+    // التحقق من تداخل الأوقات
+    function hasOverlap(roomId, startDate, endDate, ignoreBookingId = null) {
+      const roomBookings = bookings.filter(
+        (b) =>
+          b.room_id === roomId &&
+          b.status === "active" &&
+          (ignoreBookingId ? b.id !== ignoreBookingId : true)
+      );
+      for (const b of roomBookings) {
+        const s = new Date(b.start_time);
+        const e = new Date(b.end_time);
+        if (startDate < e && endDate > s) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // إنشاء حجز جديد
+    async function handleCreateBooking(event) {
+      event.preventDefault();
+      if (!selectedRoomId) {
+        showToast("الرجاء اختيار قاعة أولاً", "error");
+        return;
+      }
+
+      const room = rooms.find((r) => r.id === selectedRoomId);
+      const title = titleInput.value.trim();
+      const team = teamInput.value.trim();
+      const attendees = parseInt(attendeesInput.value || "0", 10);
+      const duration = parseInt(durationInput.value, 10);
+      const dateStr = dateInput.value;
+      const timeStr = timeInput.value;
+      const objective = objectiveInput.value.trim();
+
+      if (!title || !team || !attendees || !dateStr || !timeStr) {
+        showToast("الرجاء تعبئة جميع الحقول المطلوبة", "error");
+        return;
+      }
+
+      // التحقق من وقت الدوام
+      const [hourStr, minuteStr] = timeStr.split(":");
+      const hour = parseInt(hourStr, 10);
+      if (hour < WORK_START_HOUR || hour >= WORK_END_HOUR) {
+        showToast("الحجز مسموح بين الساعة 8:00 صباحًا و 4:00 عصرًا فقط", "error");
+        return;
+      }
+
+      const startDate = new Date(`${dateStr}T${timeStr}:00`);
+      const endDate = new Date(startDate.getTime() + duration * 60000);
+
+      // منع تجاوزه نهاية الدوام
+      const workEndDate = new Date(startDate);
+      workEndDate.setHours(WORK_END_HOUR, 0, 0, 0);
+      if (endDate > workEndDate) {
+        showToast("مدة الاجتماع تتجاوز نهاية ساعات العمل (4:00 م)", "error");
+        return;
+      }
+
+      // منع تداخل
+      if (hasOverlap(selectedRoomId, startDate, endDate)) {
+        showToast("يوجد حجز آخر متداخل مع هذا الوقت في نفس القاعة", "error");
+        return;
+      }
+
+      try {
+        const id =
+          (window.crypto && crypto.randomUUID && crypto.randomUUID()) ||
+          `booking_${Date.now()}`;
+
+        const { error } = await supabaseClient.from("bookings").insert([
+          {
+            id,
+            room_id: room.id,
+            room_name: room.name,
+            title,
+            team,
+            attendees,
+            objective,
+            duration,
+            start_time: startDate.toISOString(),
+            end_time: endDate.toISOString(),
+            status: "active"
+          }
+        ]);
+
+        if (error) throw error;
+
+        showToast("تم تسجيل الحجز بنجاح ✓", "success");
+        closeModal();
+        // إعادة تحميل حجوزات نفس اليوم
+        await loadBookingsForDate(datePicker.value || dateStr);
+      } catch (err) {
+        console.error("Error creating booking:", err);
+        showToast("تعذر تسجيل الحجز، يرجى المحاولة لاحقاً", "error");
+      }
+    }
+
+    // إلغاء حجز
+    async function cancelBooking(id) {
+      try {
+        const { error } = await supabaseClient
+          .from("bookings")
+          .update({ status: "cancelled" })
+          .eq("id", id);
+
+        if (error) throw error;
+        showToast("تم إلغاء الحجز", "success");
+        await loadBookingsForDate(datePicker.value || new Date().toISOString().slice(0, 10));
+      } catch (err) {
+        console.error("Error cancelling booking:", err);
+        showToast("تعذر إلغاء الحجز", "error");
+      }
+    }
+
+    // إعداد الأحداث
+    function setupEventListeners() {
+      newBookingBtn.addEventListener("click", openModal);
+      closeModalBtn.addEventListener("click", closeModal);
+      cancelModalBtn.addEventListener("click", closeModal);
+      bookingModalBackdrop.addEventListener("click", (e) => {
+        if (e.target === bookingModalBackdrop) closeModal();
+      });
+      bookingForm.addEventListener("submit", handleCreateBooking);
+      datePicker.addEventListener("change", () => {
+        loadBookingsForDate(datePicker.value);
+      });
+    }
+
+    async function init() {
+      startClock();
+      setupEventListeners();
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      datePicker.value = todayStr;
+
+      await loadRooms();
+      await loadBookingsForDate(todayStr);
+
+      // جعل أول قاعة مختارة افتراضياً
+      if (rooms.length) {
+        selectedRoomId = rooms[0].id;
+        currentRoomLabel.textContent = rooms[0].name;
+        newBookingBtn.disabled = false;
+        renderRooms();
+        renderBookings();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
