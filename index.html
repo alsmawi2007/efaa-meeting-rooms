@@ -563,9 +563,14 @@
 
   <script>
     // إعداد Supabase
-    const SUPABASE_URL = "https://qrivkugygvycseqjfgri.supabase.co";
-    const SUPABASE_KEY = "sb-publishable_cbznaUAsUgQ0XX9mZhGob6Q_Fygnaz-D";
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
 
     // الحالة داخل الواجهة
     let rooms = [];
