@@ -3,49 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>نظام حجز القاعات - إيفاء</title>
+    <title>مجمع الأمير سلطان للتأهيل - نظام حجز القاعات</title>
 
-    <style>
-        body {
-            margin: 0;
-            font-family: "Tajawal", sans-serif;
-            background: #008f8a;
-            color: white;
-        }
-
-        .container {
-            padding: 20px;
-            max-width: 1200px;
-            margin: auto;
-        }
-
-        .card {
-            background: rgba(255,255,255,0.12);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .section-title {
-            font-size: 22px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        #toast {
-            display: none;
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #ff4444;
-            color: white;
-            padding: 15px 22px;
-            border-radius: 12px;
-            font-size: 16px;
-            z-index: 9999;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css" />
 
     <!-- تحميل إعدادات Supabase -->
     <script src="config.js"></script>
@@ -57,115 +17,97 @@
         const SUPABASE_URL = window.APP_CONFIG.SUPABASE_URL;
         const SUPABASE_ANON = window.APP_CONFIG.SUPABASE_ANON_KEY;
 
+        // إنشاء Supabase Client
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-        console.log("Supabase جاهز ✓", SUPABASE_URL);
+        console.log("Supabase loaded:", SUPABASE_URL);
+        window.supabase = supabase; // تخزينه للاستخدام
+    </script>
 
-        // ------------ تحميل القاعات ------------
+</head>
+
+<body>
+
+    <!-- المحتوى الرئيسي -->
+    <div id="app">
+        <h2>مجمع الأمير سلطان للتأهيل - إيفاء</h2>
+        <h4>نظام حجز قاعات الاجتماعات الداخلية</h4>
+
+        <div class="section">
+            <h3>القاعات المتاحة</h3>
+            <div id="roomsGrid"></div>
+            <p id="roomsHint" class="hint"></p>
+        </div>
+
+        <div class="section">
+            <h3>حجوزات اليوم للقاعات</h3>
+            <input type="date" id="datePicker" />
+            <div id="bookingList"></div>
+            <p id="bookingEmpty" class="hint"></p>
+        </div>
+    </div>
+
+    <!-- سكربت التشغيل -->
+    <script type="module">
+        // التأكد من وجود supabase
+        const supabase = window.supabase;
+
+        const roomsGrid = document.getElementById("roomsGrid");
+        const roomsHint = document.getElementById("roomsHint");
+        const bookingList = document.getElementById("bookingList");
+        const bookingEmpty = document.getElementById("bookingEmpty");
+        const datePicker = document.getElementById("datePicker");
+
+        // تحميل القاعات
         async function loadRooms() {
-            const { data, error } = await supabase
-                .from("rooms")
-                .select("*")
-                .order("name");
+            const { data, error } = await supabase.from("rooms").select("*");
 
-            if (error) return showError("خطأ في تحميل القاعات");
+            if (error) {
+                roomsHint.textContent = "تعذر تحميل القاعات.";
+                return;
+            }
 
-            renderRooms(data);
+            if (!data.length) {
+                roomsHint.textContent = "لا توجد قاعات مسجلة.";
+                return;
+            }
+
+            roomsGrid.innerHTML = data
+                .map(room => `<div class="room-box">${room.name}</div>`)
+                .join("");
         }
 
-        // ------------ تحميل الحجوزات ------------
+        // تحميل الحجوزات
         async function loadBookings(date) {
             const { data, error } = await supabase
                 .from("bookings")
                 .select("*")
-                .eq("status", "active")
-                .eq("date", date)
-                .order("start_time");
+                .eq("date", date);
 
-            if (error) return showError("خطأ في تحميل الحجوزات");
-
-            renderBookings(data);
-        }
-
-        // ------------ عرض القاعات ------------
-        function renderRooms(rooms) {
-            const grid = document.getElementById("roomsGrid");
-            grid.innerHTML = "";
-
-            if (!rooms.length) {
-                grid.innerHTML = "<p>لا توجد قاعات متاحة.</p>";
+            if (error) {
+                bookingEmpty.textContent = "حدث خطأ أثناء تحميل الحجوزات.";
                 return;
             }
 
-            rooms.forEach(r => {
-                const div = document.createElement("div");
-                div.className = "card";
-                div.textContent = r.name + " - السعة: " + r.capacity;
-                grid.appendChild(div);
-            });
-        }
-
-        // ------------ عرض الحجوزات ------------
-        function renderBookings(bookings) {
-            const list = document.getElementById("bookingList");
-            list.innerHTML = "";
-
-            if (!bookings.length) {
-                list.innerHTML = "<p>لا توجد حجوزات لليوم.</p>";
+            if (!data.length) {
+                bookingEmpty.textContent = "لا توجد حجوزات لهذا اليوم.";
+                bookingList.innerHTML = "";
                 return;
             }
 
-            bookings.forEach(b => {
-                const item = document.createElement("div");
-                item.className = "card";
-                item.innerHTML = `
-                    <strong>${b.title}</strong><br>
-                    من ${b.start_time} إلى ${b.end_time}<br>
-                    الفريق: ${b.team}
-                `;
-                list.appendChild(item);
-            });
+            bookingList.innerHTML = data
+                .map(b => `<div class="booking-item">قاعة: ${b.room_name} — من ${b.start_time} إلى ${b.end_time}</div>`)
+                .join("");
         }
 
-        // ------------ التاريخ الافتراضي اليوم ------------
-        const today = new Date().toISOString().slice(0, 10);
-        document.getElementById("datePicker").value = today;
-
-        loadRooms();
-        loadBookings(today);
-
-        document.getElementById("datePicker").addEventListener("change", (e) => {
+        // عند اختيار التاريخ
+        datePicker.addEventListener("change", (e) => {
             loadBookings(e.target.value);
         });
 
-        // ------------ عرض الأخطاء ------------
-        function showError(msg) {
-            const t = document.getElementById("toast");
-            t.textContent = msg;
-            t.style.display = "block";
-            setTimeout(() => t.style.display = "none", 3000);
-        }
+        // بداية التشغيل
+        loadRooms();
     </script>
-</head>
 
-<body>
-    <div class="container">
-
-        <div class="card">
-            <h2 class="section-title">القاعات المتاحة</h2>
-            <div id="roomsGrid"></div>
-        </div>
-
-        <div class="card">
-            <h2 class="section-title">حجوزات اليوم للقاعات</h2>
-
-            <input type="date" id="datePicker" style="padding:10px;border-radius:8px;border:none;font-size:16px;" />
-
-            <div id="bookingList" style="margin-top:20px"></div>
-        </div>
-
-    </div>
-
-    <div id="toast"></div>
 </body>
 </html>
